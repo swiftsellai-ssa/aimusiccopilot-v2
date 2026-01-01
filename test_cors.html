@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test for Projects API</title>
+</head>
+<body>
+    <h1>Projects API CORS Test</h1>
+    <button onclick="testProjects()">Test GET /api/projects</button>
+    <button onclick="testCreateProject()">Test POST /api/projects</button>
+    <pre id="output"></pre>
+
+    <script>
+        const output = document.getElementById('output');
+
+        async function testProjects() {
+            output.textContent = 'Testing GET /api/projects...\n';
+
+            try {
+                const response = await fetch('http://localhost:8000/api/projects', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+
+                output.textContent += `Status: ${response.status}\n`;
+                output.textContent += `Headers:\n`;
+                response.headers.forEach((value, key) => {
+                    output.textContent += `  ${key}: ${value}\n`;
+                });
+
+                const data = await response.json();
+                output.textContent += `\nBody: ${JSON.stringify(data, null, 2)}\n`;
+
+                output.textContent += '\n✓ SUCCESS - CORS is working!\n';
+            } catch (error) {
+                output.textContent += `\n✗ ERROR: ${error.message}\n`;
+                output.textContent += `\nThis is likely a CORS issue.\n`;
+            }
+        }
+
+        async function testCreateProject() {
+            output.textContent = 'Testing POST /api/projects...\n';
+
+            try {
+                const response = await fetch('http://localhost:8000/api/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        name: 'Test Project',
+                        bpm: 120,
+                        key: 'C',
+                        scale: 'minor'
+                    })
+                });
+
+                output.textContent += `Status: ${response.status}\n`;
+                output.textContent += `Headers:\n`;
+                response.headers.forEach((value, key) => {
+                    output.textContent += `  ${key}: ${value}\n`;
+                });
+
+                const data = await response.json();
+                output.textContent += `\nBody: ${JSON.stringify(data, null, 2)}\n`;
+
+                if (response.status === 401) {
+                    output.textContent += '\n✓ CORS working (401 = need auth, which is correct)\n';
+                } else {
+                    output.textContent += '\n✓ SUCCESS\n';
+                }
+            } catch (error) {
+                output.textContent += `\n✗ ERROR: ${error.message}\n`;
+                output.textContent += `\nThis is likely a CORS issue.\n`;
+            }
+        }
+    </script>
+</body>
+</html>

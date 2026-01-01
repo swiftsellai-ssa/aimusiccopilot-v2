@@ -1,0 +1,2 @@
+PS C:\projapp\aimusiccopilot\backend> .\venv\Scripts\activate
+C:\projapp\aimusiccopilot\backend> python -m uvicorn main:app --reload
