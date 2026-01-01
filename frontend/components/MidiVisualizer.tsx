@@ -11,7 +11,7 @@ interface VisualizerProps {
 
 export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: VisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | null>(null);
   const [midiData, setMidiData] = useState<Midi | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -25,14 +25,14 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
       hat: { primary: '#10b981', glow: '#34d399', bg: '#064e3b' },
       default: { primary: '#60a5fa', glow: '#93c5fd', bg: '#1e3a8a' }
     };
-    
+
     return schemes[instrument as keyof typeof schemes] || schemes.default;
   }, [instrument]);
 
   // Load MIDI data
   useEffect(() => {
     if (!midiUrl) return;
-    
+
     const loadMidi = async () => {
       setIsLoading(true);
       try {
@@ -44,7 +44,7 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
         setIsLoading(false);
       }
     };
-    
+
     loadMidi();
   }, [midiUrl]);
 
@@ -59,15 +59,15 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
     const width = canvas.width;
     const height = canvas.height;
     const colors = getColorScheme();
-    
+
     // Clear canvas
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, width, height);
-    
+
     // Draw grid
     ctx.strokeStyle = '#262626';
     ctx.lineWidth = 0.5;
-    
+
     // Vertical lines (bars)
     for (let i = 0; i <= 4; i++) {
       const x = (width / 4) * i;
@@ -76,7 +76,7 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
       ctx.lineTo(x, height);
       ctx.stroke();
     }
-    
+
     // Horizontal lines (octaves)
     for (let i = 0; i <= 4; i++) {
       const y = (height / 4) * i;
@@ -93,12 +93,12 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
     // Find note range
     let minNote = Math.min(...allNotes.map(n => n.midi));
     let maxNote = Math.max(...allNotes.map(n => n.midi));
-    
+
     // Add padding
     minNote = Math.max(0, minNote - 2);
     maxNote = Math.min(127, maxNote + 2);
     const noteRange = maxNote - minNote || 1;
-    
+
     const duration = midiData.duration || 4;
 
     // Draw notes with glow effect
@@ -112,28 +112,28 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
       // Draw glow
       ctx.shadowBlur = 8;
       ctx.shadowColor = colors.glow;
-      
+
       // Draw note rectangle with gradient
       const gradient = ctx.createLinearGradient(x, y, x + w, y);
       gradient.addColorStop(0, colors.primary);
       gradient.addColorStop(0.5, colors.glow);
       gradient.addColorStop(1, colors.primary);
-      
+
       ctx.fillStyle = gradient;
       ctx.fillRect(x, y, w, h);
-      
+
       // Draw velocity indicator
       const velocityAlpha = note.velocity || 0.8;
       ctx.fillStyle = `${colors.glow}${Math.floor(velocityAlpha * 255).toString(16).padStart(2, '0')}`;
       ctx.fillRect(x, y - 1, w, 1);
-      
+
       ctx.shadowBlur = 0;
     });
 
     // Draw playhead animation
     const currentTime = (Date.now() % 4000) / 4000; // Loop every 4 seconds
     const playheadX = currentTime * width;
-    
+
     ctx.strokeStyle = '#ffffff30';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -151,11 +151,11 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
       draw();
       animationRef.current = requestAnimationFrame(animate);
     };
-    
+
     animate();
-    
+
     return () => {
-      if (animationRef.current) {
+      if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
       }
     };
@@ -178,16 +178,16 @@ export default function MidiVisualizer({ midiUrl, instrument, height = 120 }: Vi
           </span>
         )}
       </div>
-      
+
       <div className="relative rounded-lg overflow-hidden border border-neutral-800 bg-black shadow-inner">
-        <canvas 
-          ref={canvasRef} 
-          width={800} 
-          height={height} 
+        <canvas
+          ref={canvasRef}
+          width={800}
+          height={height}
           className="w-full"
           style={{ height: `${height}px` }}
         />
-        
+
         {/* Overlay gradient for depth */}
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/50 to-transparent" />
       </div>
