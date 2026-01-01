@@ -10,6 +10,8 @@ import MidiPlayerWithAudio from '@/components/MidiPlayerWithAudio';
 import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import { analytics } from '@/lib/analytics';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 // Preset Patterns
 const PRESETS = [
   {
@@ -278,7 +280,7 @@ export default function UnifiedMusicGenerator() {
       const formData = new URLSearchParams();
       formData.append('username', authForm.email);
       formData.append('password', authForm.password);
-      const response = await axios.post('http://localhost:8000/token', formData);
+      const response = await axios.post(`${API_URL}/token`, formData);
       localStorage.setItem('token', response.data.access_token);
       setIsAuthenticated(true);
       toast.success('Logged in successfully!');
@@ -290,7 +292,7 @@ export default function UnifiedMusicGenerator() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:8000/register', {
+      await axios.post(`${API_URL}/register`, {
         email: authForm.email,
         password: authForm.password
       });
@@ -433,7 +435,7 @@ export default function UnifiedMusicGenerator() {
 
     try {
       const response = await axios.post(
-        'http://localhost:8000/social/generations/share',
+        `${API_URL}/social/generations/share`,
         {
           title: shareTitle.trim(),
           description: shareDescription.trim() || null,
@@ -478,7 +480,7 @@ export default function UnifiedMusicGenerator() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await axios.get('http://localhost:8000/api/projects', {
+      const response = await axios.get(`${API_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserProjects(response.data);
@@ -513,7 +515,7 @@ export default function UnifiedMusicGenerator() {
 
     try {
       await axios.post(
-        `http://localhost:8000/api/projects/${selectedProject}/tracks`,
+        `${API_URL}/api/projects/${selectedProject}/tracks`,
         {
           name: trackName.trim(),
           type: generationType,
@@ -570,7 +572,7 @@ export default function UnifiedMusicGenerator() {
       if (mode === 'simple') {
         // Use Complete Track Generator
         const response = await axios.post(
-          'http://localhost:8000/api/generate/midi',
+          `${API_URL}/api/generate/midi`,
           null,
           {
             params: {
@@ -598,7 +600,7 @@ export default function UnifiedMusicGenerator() {
             generation_time_ms: generationTime
           });
 
-          const fileUrl = `http://localhost:8000${response.data.file_url}`;
+          const fileUrl = `${API_URL}${response.data.file_url}`;
           setCurrentMidiUrl(fileUrl);
           setCurrentBpm(bpm);
           saveToHistory(fileUrl, { bpm });
@@ -607,7 +609,7 @@ export default function UnifiedMusicGenerator() {
       } else {
         // Use DNA Pattern Generator
         const response = await axios.post(
-          'http://localhost:8000/api/integrated-midi/generate',
+          `${API_URL}/api/integrated-midi/generate`,
           {
             description: description || `${style} ${generationType} pattern`,
             style,
@@ -649,7 +651,7 @@ export default function UnifiedMusicGenerator() {
             generation_time_ms: generationTime
           });
 
-          const fileUrl = `http://localhost:8000${response.data.download_url}`;
+          const fileUrl = `${API_URL}${response.data.download_url}`;
           setCurrentMidiUrl(fileUrl);
           setCurrentBpm(response.data.metadata.bpm);
           saveToHistory(fileUrl, response.data.metadata);

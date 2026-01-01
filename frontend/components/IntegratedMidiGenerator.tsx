@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import MidiPlayerWithAudio from './MidiPlayerWithAudio';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 const IntegratedMidiGenerator = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -36,9 +38,9 @@ const IntegratedMidiGenerator = () => {
   const loadMetadata = async () => {
     try {
       const [stylesRes, instrumentsRes, presetsRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/integrated-midi/styles'),
-        axios.get('http://localhost:8000/api/integrated-midi/instruments'),
-        axios.get('http://localhost:8000/api/integrated-midi/presets')
+        axios.get(`${API_URL}/api/integrated-midi/styles`),
+        axios.get(`${API_URL}/api/integrated-midi/instruments`),
+        axios.get(`${API_URL}/api/integrated-midi/presets`)
       ]);
 
       setStyles(stylesRes.data.styles);
@@ -58,7 +60,7 @@ const IntegratedMidiGenerator = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8000/api/integrated-midi/generate', params, {
+      const response = await axios.post(`${API_URL}/api/integrated-midi/generate`, params, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -78,7 +80,7 @@ const IntegratedMidiGenerator = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:8000/api/integrated-midi/quick-generate', null, {
+      const response = await axios.post(`${API_URL}/api/integrated-midi/quick-generate`, null, {
         params: {
           description: params.description,
           style: params.style
@@ -109,7 +111,7 @@ const IntegratedMidiGenerator = () => {
   const handleDownload = () => {
     if (result?.download_url) {
       // Download URL is now a static file path, no auth needed
-      window.location.href = `http://localhost:8000${result.download_url}`;
+      window.location.href = `${API_URL}${result.download_url}`;
     }
   };
 
@@ -350,7 +352,7 @@ const IntegratedMidiGenerator = () => {
 
             {/* MIDI Player with Real Audio */}
             <MidiPlayerWithAudio
-              midiUrl={`http://localhost:8000${result.download_url}`}
+              midiUrl={`${API_URL}${result.download_url}`}
               bpm={result.metadata.bpm}
             />
           </div>
