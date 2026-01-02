@@ -30,6 +30,7 @@ const MidiPlayerWithAudio = forwardRef<MidiPlayerRef, MidiPlayerWithAudioProps>(
     const synthsRef = useRef<Tone.PolySynth[]>([]);
     const partsRef = useRef<Tone.Part[]>([]);
     const midiDataRef = useRef<Midi | null>(null);
+    // Fix for Vercel build: explicitly initialized with null
     const animationFrameRef = useRef<number | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
