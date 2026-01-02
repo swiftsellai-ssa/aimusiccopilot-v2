@@ -122,7 +122,7 @@ class IntegratedMidiGenerator:
             # Auto-detect DNA usage if not specified
             if use_dna is None:
                 # Use DNA for supported styles, regardless of complexity
-                use_dna = style in self.advanced_generator.pattern_templates
+                use_dna = style in self.advanced_generator.style_patterns.PATTERNS
                 logger.info(f"Auto-detected use_dna={use_dna} for style={style}")
 
             # Determine MIDI channel based on instrument type
@@ -132,8 +132,15 @@ class IntegratedMidiGenerator:
             logger.info(f"Generating: style={style}, instrument={instrument}, "
                        f"use_dna={use_dna}, humanize={should_humanize}, channel={channel}")
 
+            # Check if style/instrument combination is supported by StylePatterns
+            # Since StylePatterns is dynamic, we mostly rely on it returning valid patterns or fallbacks
+            # We can check if style is in StylePatterns.PATTERNS
+            
             # Route to appropriate generator
-            if use_dna and style in self.advanced_generator.pattern_templates:
+            # If use_dna is explicitly requested OR style is supported, use advanced (DNA) generator
+            is_advanced_style = style in self.advanced_generator.style_patterns.PATTERNS
+            
+            if use_dna or is_advanced_style:
                 # Remove style and instrument from kwargs to avoid duplicate arguments
                 dna_kwargs = {k: v for k, v in kwargs.items() if k not in ['style', 'instrument']}
                 midi_file = self._generate_with_dna(
@@ -145,7 +152,7 @@ class IntegratedMidiGenerator:
                 )
             else:
                 logger.info(f"Using basic generator (use_dna={use_dna}, "
-                           f"style_supported={style in self.advanced_generator.pattern_templates})")
+                           f"style_supported={is_advanced_style})")
                 # Remove duplicate arguments
                 basic_kwargs = {k: v for k, v in kwargs.items() if k not in ['instrument']}
                 midi_file = self.basic_generator.generate_track(
@@ -279,13 +286,11 @@ class IntegratedMidiGenerator:
             logger.warning(f"Unknown instrument '{instrument}', will use best effort")
 
         # Check if style/instrument combination is supported by advanced generator
-        if style in self.advanced_generator.pattern_templates:
-            style_data = self.advanced_generator.pattern_templates[style]
-            if instrument not in style_data and instrument not in self.MELODIC_INSTRUMENTS:
-                logger.warning(
-                    f"Instrument '{instrument}' not explicitly supported for style '{style}'. "
-                    f"Supported: {list(style_data.keys())}"
-                )
+        if style in self.advanced_generator.style_patterns.PATTERNS:
+            style_data = self.advanced_generator.style_patterns.PATTERNS[style]
+            # StylePatterns structure is different now, simple existence check is sufficient
+            # or check if instrument is a key in generic dict logic
+            pass
 
     def _get_channel_for_instrument(self, instrument: str) -> int:
         """
@@ -344,59 +349,89 @@ class IntegratedMidiGenerator:
                              key: str = 'C',
                              scale_type: str = 'minor') -> List[Dict]:
         """
-        Add pitch and channel information with scale quantization for melodies.
-        
-        Args:
-            events: List of event dictionaries
-            instrument: Instrument type
-            channel: MIDI channel
-            key: Musical key (root note)
-            scale_type: Type of scale
-            
-        Returns:
-            List[Dict]: Events with pitch and channel added
+        Add pitch and channel information using event-specific context.
+        Handles chords, arps, and multi-instrument drum kits.
         """
         # Get drum map from basic generator
         drum_map = self.basic_generator.drum_map
-
+        
         # Probabilistic pitch walk state
         current_pitch = 60 # Start at Middle C
         
+        enhanced_events = []
+        
         for event in events:
-            # Add channel
-            event['channel'] = channel
+            # Use specific instrument from event if available (for full_kit)
+            evt_instrument = event.get('instrument_type', instrument)
+            
+            # Determine correct channel for this specific event
+            evt_channel = self._get_channel_for_instrument(evt_instrument)
+            event['channel'] = evt_channel
 
-            # Add pitch if not present
-            if 'pitch' not in event:
-                if channel == 9:  # Drums
-                    # Map instrument name to MIDI note
-                    if instrument in drum_map:
-                        event['pitch'] = drum_map[instrument]
-                    elif instrument in self.DRUM_INSTRUMENTS:
-                        # Default to kick for unknown drum instruments
-                        event['pitch'] = drum_map.get('kick', 36)
+            # Skip if pitch already assigned
+            if 'pitch' in event and not isinstance(event['pitch'], list):
+                enhanced_events.append(event)
+                continue
+
+            if evt_channel == 9:  # Drums
+                # Map instrument name to MIDI note
+                if evt_instrument in drum_map:
+                    event['pitch'] = drum_map[evt_instrument]
+                elif evt_instrument in self.DRUM_INSTRUMENTS:
+                    event['pitch'] = drum_map.get('kick', 36)
+                else:
+                    event['pitch'] = 36  # Default kick
+                enhanced_events.append(event)
+                
+            else:  # Melodic
+                # Check for Chord/Scale context
+                degree = event.get('degree', 1)
+                is_chord = event.get('is_chord', False)
+                is_arp = event.get('is_arp', False)
+                
+                if is_chord:
+                    # Generate full chord
+                    chord_notes = self.music_theory.get_chord_notes(
+                        key, scale_type, degree, extension=3
+                    )
+                    # Create multiple note-on events for the chord
+                    for note in chord_notes:
+                        chord_evt = event.copy()
+                        chord_evt['pitch'] = note
+                        enhanced_events.append(chord_evt)
+                else:
+                    # Monophonic Melody / Arp / Bass
+                    # Determine target pitch based on scale degree
+                    chord_notes = self.music_theory.get_chord_notes(
+                        key, scale_type, degree, extension=4
+                    )
+                    
+                    if is_arp:
+                        # Arpeggiate: pick note based on time slot
+                        note_idx = int(event['time'] * 4) % len(chord_notes)
+                        target_pitch = chord_notes[note_idx]
+                    elif evt_instrument in ['bass', 'sub', '808']:
+                        # Bass usually plays root of the chord
+                        target_pitch = chord_notes[0] - 12 # Drop octave
                     else:
-                        event['pitch'] = 36  # Default kick
-                else:  # Melodic
-                    # Generate probabilistic pitch variation ("Random Walk")
-                    # Move by small intervals (-2 to +2 semitones usually, occasionally more)
-                    interval = random.choice([-5, -4, -3, -2, -1, 0, 0, 0, 1, 2, 3, 4, 7])
+                        # Random walk within chord tones or scale
+                        if random.random() < 0.7:
+                            target_pitch = random.choice(chord_notes)
+                        else:
+                            # Passing tone (scale walk logic)
+                            target_pitch = self.quantize_to_scale(current_pitch + random.choice([-2, -1, 1, 2]), scale_type, key)
                     
-                    # Apply variation to current pitch context
-                    raw_pitch = current_pitch + interval
-                    
-                    # Keep within reasonable range (C2 to C6)
-                    raw_pitch = max(36, min(84, raw_pitch))
-                    
-                    # Quantize to scale
-                    quantized_pitch = self.quantize_to_scale(raw_pitch, scale_type, key)
-                    
-                    event['pitch'] = quantized_pitch
-                    
-                    # Update current pitch for next step (to create melody flow)
-                    current_pitch = quantized_pitch
+                    # Ensure range
+                    if evt_instrument in ['bass', 'sub', '808']:
+                        target_pitch = max(24, min(48, target_pitch))
+                    else:
+                        target_pitch = max(48, min(84, target_pitch))
+                        
+                    event['pitch'] = target_pitch
+                    current_pitch = target_pitch
+                    enhanced_events.append(event)
 
-        return events
+        return enhanced_events
 
     def _events_to_midi(self, events: List[Dict], bpm: int) -> mido.MidiFile:
         """

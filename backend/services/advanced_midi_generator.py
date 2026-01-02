@@ -34,7 +34,23 @@ class AdvancedPatternGenerator:
                                   bars: int = 4) -> List[Dict]:
         """
         Generate pattern using detailed style definitions and DNA parameters.
+        Handles 'full_kit' by compositing patterns.
         """
+        events = []
+        
+        # --- Handle Aggregate Instruments ---
+        if instrument in ['full_kit', 'full_drums', 'drums']:
+            # Generate kit components recursively
+            for component in ['kick', 'snare', 'hat']:
+                component_events = self.generate_pattern_with_dna(style, component, dna, bars)
+                events.extend(component_events)
+            
+            # Sort composite events
+            events.sort(key=lambda x: x['time'])
+            return events
+
+        # --- Base Logic for Single Instruments ---
+        
         # 1. Get Base Pattern from StylePatterns
         base_pattern = StylePatterns.get_pattern(style, instrument)
         
@@ -51,10 +67,20 @@ class AdvancedPatternGenerator:
             else:
                 groove_template = 'laid_back' # Default subtle humanization
         
-        events = []
         pattern_length = 16 # 16 steps per bar
         
+        # Pre-calculate Chord Progression if needed (for melodic/chords)
+        progression = []
+        if instrument in ['chords', 'lead', 'pad', 'arp', 'melody']:
+            progression = MusicTheoryEngine.get_progression(style)
+            # Repeat progression to fill bars
+            while len(progression) < bars:
+                progression.extend(progression)
+        
         for bar in range(bars):
+            # For melodic instruments, determine current chord degree
+            current_degree = progression[bar % len(progression)] if progression else 1
+            
             for step in range(pattern_length):
                 position = bar * pattern_length + step
                 step_in_pattern = step % 16
@@ -63,14 +89,18 @@ class AdvancedPatternGenerator:
                 base_value = base_pattern[step_in_pattern]
                 
                 # 3. Calculate Hit Probability (Density Logic)
-                # If instrument is melodic, density acts differently (handled later or via MusicTheory)
-                # For drums:
                 hit_probability = self._calculate_hit_probability(
                     base_value,
                     dna.density,
                     position,
                     dna.evolution
                 )
+                
+                # Adjust probability for melodic coherence (fewer random notes)
+                if instrument not in ['kick', 'snare', 'hat', 'perc']:
+                    if dna.density < 0.5:
+                         # Force stick to grid more for low density melody
+                        hit_probability = 1.0 if base_value else 0.0
                 
                 # Roll for hit
                 if random.random() < hit_probability:
@@ -83,7 +113,6 @@ class AdvancedPatternGenerator:
                     
                     # 5. Apply Groove (Timing Offset)
                     groove_amount = dna.groove
-                    # Use style default swing if DNA groove is high
                     if dna.groove > 0.5 and style_meta['swing'] > 0:
                         groove_amount = max(dna.groove, style_meta['swing'])
                         
@@ -94,17 +123,32 @@ class AdvancedPatternGenerator:
                     )
                     
                     # 6. Create Event
-                    note_duration = 0.125 if instrument in ['hat', 'shake'] else 0.25
+                    note_duration = 0.25 # Default quarter note
                     
-                    events.append({
+                    # Fine-tune durations
+                    if instrument in ['hat', 'shake', 'arp']:
+                        note_duration = 0.125
+                    elif instrument in ['pad', 'chords']:
+                        note_duration = 1.0 # Sustain
+                    
+                    event = {
                         'time': position * 0.25 + time_offset,  # Convert to beats
                         'velocity': velocity,
                         'duration': note_duration,
-                        'probability': hit_probability
-                    })
+                        'probability': hit_probability,
+                        'instrument_type': instrument # Tag for pitch assignment
+                    }
                     
-                    # 7. Add Ghost Notes (Complexity)
-                    if dna.complexity > 0.6 and instrument in ['snare', 'hat']:
+                    # Add melodic info for _add_pitch_to_events to use
+                    if instrument in ['chords', 'lead', 'pad', 'arp', 'melody']:
+                        event['degree'] = current_degree
+                        event['is_chord'] = (instrument in ['chords', 'pad'])
+                        event['is_arp'] = (instrument == 'arp')
+                        
+                    events.append(event)
+                    
+                    # 7. Add Ghost Notes (Complexity) - Drums Only
+                    if instrument in ['snare', 'hat'] and dna.complexity > 0.6:
                         if random.random() < (dna.complexity - 0.5):
                             ghost_offset = GrooveEngine.get_timing_offset(
                                 step, 
@@ -115,7 +159,8 @@ class AdvancedPatternGenerator:
                                 'time': position * 0.25 + 0.125 + ghost_offset,  # 16th after
                                 'velocity': int(velocity * 0.4),  # Quiet
                                 'duration': 0.0625,
-                                'probability': 0.5
+                                'probability': 0.5,
+                                'instrument_type': instrument
                             })
                             
         return events
@@ -138,6 +183,7 @@ class AdvancedPatternGenerator:
             # High: add fills
             prob *= (0.8 + density * 0.2)
             if position % 2 == 1 and base_value == 0:
+                # Add notes in empty spaces
                 prob += (density - 0.7) * 0.5
 
         # Evolution
