@@ -181,7 +181,9 @@ async def generate_midi(
     )
 
     # 4. Salvăm fișierul fizic în storage persistent cu informații complete
-    filename = f"{instrument}_{musical_key}_{musical_scale}_{user.id}_{int(datetime.datetime.now().timestamp())}.mid"
+    # Sanitize key for filename (replace # with 'sharp')
+    safe_key = musical_key.replace("#", "sharp")
+    filename = f"{instrument}_{safe_key}_{musical_scale}_{user.id}_{int(datetime.datetime.now().timestamp())}.mid"
     file_path = STORAGE_DIR / filename
 
     midi.save(file_path)
