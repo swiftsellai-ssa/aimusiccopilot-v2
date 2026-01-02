@@ -1,0 +1,153 @@
+from typing import Dict, List, Optional
+import random
+
+class StylePatterns:
+    """
+    Central repository for musical style patterns and definitions.
+    Includes explicit drum patterns and instrument behaviors for various genres.
+    """
+    
+    PATTERNS: Dict[str, Dict] = {
+        # --- Electronic Genres ---
+        'techno': {
+            'kick': {'base': [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]}, # Four-on-the-floor
+            'hat':  {'base': [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]}, # Off-beat
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # Claps on 2 & 4
+            'perc': {'base': [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]},
+        },
+        'house': {
+            'kick': {'base': [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]},
+            'hat':  {'base': [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]},
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # Clap
+            'shake':{'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]}, # Shaker
+        },
+        'trap': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0]}, # Syncopated
+            'hat':  {'base': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}, # 16ths (often rolled)
+            'snare':{'base': [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]}, # Snare on 3
+        },
+        'dnb': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]}, # Breakbeat
+            'hat':  {'base': [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1]},
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]},
+        },
+        
+        # --- Acoustic / Band Genres ---
+        'pop': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0]}, # Pop groove
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]}, # 8ths
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # 2 & 4
+            'tom':  {'base': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, # Simple fill
+        },
+        'rock': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0]}, # Driving rock
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]}, # Open/Closed interplay
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # Hard 2 & 4
+            'crash':{'base': [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, # Crash on 1
+        },
+        'indie': {
+            'kick': {'base': [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0]}, # Syncopated indie
+            'hat':  {'base': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}, # 16ths on hi-hat/shaker
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]},
+        },
+        'funk': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0]}, # Funky syncopation (the "One")
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
+            'snare':{'base': [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1]}, # Ghost notes
+            'shake':{'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
+        },
+        'disco': {
+            'kick': {'base': [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]}, # Four-on-the-floor
+            'hat':  {'base': [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]}, # Open hat offbeat
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]},
+            'perc': {'base': [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]},
+        },
+        
+        # --- Urban / Soul ---
+        'hiphop': {
+            'kick': {'base': [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0]}, # Boom Bap
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]}, # Loose 8ths
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]},
+        },
+        'soul': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, # Sparse
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]}, # Gentle
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # Laid back rimshot
+        },
+        'jazz': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0]}, # Feathering
+            'hat':  {'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # Pedal hat on 2 & 4
+            'ride': {'base': [1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0]}, # Typical Swing Ride Pattern
+            'snare':{'base': [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0]}, # Comping
+        },
+        'latin': {
+            'kick': {'base': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0]}, # Tumbao-like
+            'perc': {'base': [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0]}, # Clave (Son)
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
+        },
+        
+        # --- Heavy ---
+        'metal': {
+            'kick': {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]}, # Double bass
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]},
+            'crash':{'base': [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0]},
+        },
+        'punk': {
+            'kick': {'base': [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]}, # Fast
+            'hat':  {'base': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]},
+            'snare':{'base': [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]},
+        }
+    }
+
+    @classmethod
+    def get_pattern(cls, style: str, instrument: str) -> List[int]:
+        """
+        Retrieve pattern for a specific style and instrument.
+        Uses fallback logic if specific pattern is missing.
+        """
+        style_key = style.lower()
+        if style_key not in cls.PATTERNS:
+            style_key = 'techno' # Default fallback
+            
+        style_data = cls.PATTERNS[style_key]
+        
+        # Direct match
+        if instrument in style_data:
+            return style_data[instrument]['base']
+            
+        # Fallbacks
+        normalized_instr = instrument.lower()
+        if 'kick' in normalized_instr:
+            return style_data.get('kick', cls.PATTERNS['techno']['kick'])['base']
+        elif 'snare' in normalized_instr or 'clap' in normalized_instr:
+            return style_data.get('snare', cls.PATTERNS['techno']['snare'])['base']
+        elif 'hat' in normalized_instr or 'hh' in normalized_instr:
+            return style_data.get('hat', cls.PATTERNS['techno']['hat'])['base']
+        elif 'ride' in normalized_instr:
+            return style_data.get('ride', style_data.get('hat', cls.PATTERNS['jazz']['hat']))['base']
+            
+        # Generic silence
+        return [0] * 16
+
+    @classmethod
+    def get_style_metadata(cls, style: str) -> Dict:
+        """Returns recommended BPM and swing for a style"""
+        meta = {
+            'techno': {'bpm': 130, 'swing': 0.0},
+            'house':  {'bpm': 124, 'swing': 0.1},
+            'trap':   {'bpm': 140, 'swing': 0.0},
+            'dnb':    {'bpm': 174, 'swing': 0.0},
+            'pop':    {'bpm': 100, 'swing': 0.0},
+            'rock':   {'bpm': 110, 'swing': 0.0},
+            'indie':  {'bpm': 120, 'swing': 0.1},
+            'funk':   {'bpm': 105, 'swing': 0.25},
+            'disco':  {'bpm': 120, 'swing': 0.05},
+            'hiphop': {'bpm': 90,  'swing': 0.2},
+            'soul':   {'bpm': 80,  'swing': 0.3},
+            'jazz':   {'bpm': 120, 'swing': 0.6}, # Triplet feel
+            'latin':  {'bpm': 100, 'swing': 0.0},
+            'metal':  {'bpm': 160, 'swing': 0.0},
+            'punk':   {'bpm': 180, 'swing': 0.0},
+        }
+        return meta.get(style.lower(), {'bpm': 120, 'swing': 0.0})
