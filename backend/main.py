@@ -82,12 +82,18 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # Configurare Environment Variables
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+origins = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "https://aimusic-engine.vercel.app",
+    "https://aimusiccopilot.com",
+    "https://www.aimusiccopilot.com"
+]
 
 # Configurare CORS (Permitem Frontend-ului să vorbească cu noi)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
