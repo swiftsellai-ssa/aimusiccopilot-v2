@@ -30,7 +30,7 @@ const MidiPlayerWithAudio = forwardRef<MidiPlayerRef, MidiPlayerWithAudioProps>(
     const synthsRef = useRef<Tone.PolySynth[]>([]);
     const partsRef = useRef<Tone.Part[]>([]);
     const midiDataRef = useRef<Midi | null>(null);
-    const animationFrameRef = useRef<number | undefined>(undefined);
+    const animationFrameRef = useRef<number | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -144,7 +144,7 @@ const MidiPlayerWithAudio = forwardRef<MidiPlayerRef, MidiPlayerWithAudioProps>(
 
     const cleanup = () => {
       // Cancel animation frame first
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
 
@@ -289,7 +289,7 @@ const MidiPlayerWithAudio = forwardRef<MidiPlayerRef, MidiPlayerWithAudioProps>(
       Tone.Transport.pause();
       setIsPlaying(false);
 
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
@@ -315,7 +315,7 @@ const MidiPlayerWithAudio = forwardRef<MidiPlayerRef, MidiPlayerWithAudioProps>(
       setIsPlaying(false);
       setCurrentTime(0);
 
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
