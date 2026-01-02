@@ -1,15 +1,23 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Folosim SQLite pentru simplitate și viteză acum.
-# Va crea un fișier 'aimusiccopilot.db' în folderul backend.
-SQLALCHEMY_DATABASE_URL = "sqlite:///./aimusiccopilot.db"
+# Preluăm URL-ul din Render. Dacă nu există, folosim sqlite local.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sql_app.db")
 
-# connect_args este necesar doar pentru SQLite
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# FIX CRITIC: Render dă URL cu 'postgres://' dar SQLAlchemy vrea 'postgresql://'
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Configurare Engine
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+else:
+    # Configurare pentru Postgres (fără check_same_thread)
+    engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
