@@ -1,80 +1,132 @@
-from typing import List, Dict, Tuple
+import random
 
 class MusicTheoryEngine:
     """
-    Handles musical theory logic, specifically chord progressions and scale mapping.
+    The Harmonic Brain of amc.
+    Translates musical styles into intelligent chord progressions and voice leading.
     """
 
-    # Note mapping
-    NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    
-    # Scale Intervals
-    SCALES = {
-        'major': [0, 2, 4, 5, 7, 9, 11],
-        'minor': [0, 2, 3, 5, 7, 8, 10], 
-        'dorian': [0, 2, 3, 5, 7, 9, 10],
-        'phrygian': [0, 1, 3, 5, 7, 8, 10],
-        'lydian': [0, 2, 4, 6, 7, 9, 11],
-        'mixolydian': [0, 2, 4, 5, 7, 9, 10],
-        'locrian': [0, 1, 3, 5, 6, 8, 10],
-        'blues': [0, 3, 5, 6, 7, 10], # Hexatonic
-    }
-
-    # Common Progressions (Scale Degrees)
+    # 🎼 Style-Specific Progression Templates (Roman Numerals)
     PROGRESSIONS = {
-        'pop':      [1, 5, 6, 4], # I-V-vi-IV
-        'jazz':     [2, 5, 1, 6], # ii-V-I-vi
-        'blues':    [1, 4, 1, 5], # 12-bar simple
-        'rock':     [1, 4, 5, 4], # Power chords
-        'edm':      [6, 4, 1, 5], # vi-IV-I-V (Emotional)
-        'sad':      [6, 4, 5, 6],
-        'heroic':   [1, 5, 4, 1],
+        'pop': [
+            ['I', 'V', 'vi', 'IV'],   # The "Axis of Awesome"
+            ['I', 'vi', 'IV', 'V'],   # 50s Progression
+            ['vi', 'IV', 'I', 'V']    # Emotional Pop
+        ],
+        'jazz': [
+            ['ii', 'V', 'I', 'vi'],   # Standard Turnaround
+            ['ii7', 'V7', 'Imaj7'],   # Classic ii-V-I
+            ['Imaj7', 'vi7', 'ii7', 'V7'] # 1-6-2-5
+        ],
+        'trap': [
+            ['i', 'VI', 'III', 'VII'], # Dark Minor
+            ['i', 'iv', 'v', 'i'],     # Harmonic Minor feel
+            ['i', 'VI', 'iv', 'V']     # Creepy Trap
+        ],
+        'lofi': [
+            ['Imaj7', 'IVmaj7'],       # Chill 2-chord loop
+            ['ii9', 'V13', 'Imaj7'],   # Extended Jazz-Hop
+            ['vi9', 'ii9', 'V7', 'Imaj7']
+        ],
+        'house': [
+            ['i', 'VII', 'VI', 'VII'], # Deep House Walk
+            ['i', 'iii', 'iv', 'v'],   # Minor groove
+            ['i', 'i', 'VI', 'VII']
+        ],
+        'rnb': [
+            ['IVmaj7', 'iii7', 'ii7', 'Imaj7'], # Descending Soul
+            ['ii9', 'Imaj7', 'ii9', 'Imaj7']    # Neo-Soul vamp
+        ],
+        'generic': [['I', 'IV', 'V', 'I']] # Fallback
     }
 
-    @classmethod
-    def get_chord_notes(cls, root_note: str, scale_type: str, degree: int, extension: int = 3) -> List[int]:
-        """
-        Generate MIDI note numbers for a chord.
+    # 🎹 Roman Numeral to Scale Degree & Chord Type Map
+    ROMAN_MAP = {
+        # Major Scale
+        'I': (0, 'maj'), 'ii': (2, 'min'), 'iii': (4, 'min'), 
+        'IV': (5, 'maj'), 'V': (7, 'dom'), 'vi': (9, 'min'), 'vii': (11, 'dim'),
+        'Imaj7': (0, 'maj7'), 'IVmaj7': (5, 'maj7'),
         
-        Args:
-            root_note: e.g., 'C', 'F#'
-            scale_type: e.g., 'major', 'minor'
-            degree: Scale degree (1-based, e.g., 1 for tonic)
-            extension: 3 for triad, 4 for 7th chord
-            
-        Returns:
-            List of MIDI note numbers for the middle octave.
-        """
-        try:
-            root_idx = cls.NOTES.index(root_note)
-        except ValueError:
-            root_idx = 0 # Default to C
-            
-        interval_pattern = cls.SCALES.get(scale_type, cls.SCALES['major'])
+        # Minor Scale (Natural/Harmonic context)
+        'i': (0, 'min'), 'III': (3, 'maj'), 'iv': (5, 'min'), 
+        'v': (7, 'min'), 'VI': (8, 'maj'), 'VII': (10, 'maj'),
         
-        # Calculate scale notes (spanning 2 octaves to handle overflow)
-        scale_midi = []
-        base_octave = 60 # C4
-        
-        # Build scale relative to root
-        for octave in range(3):
-            for interval in interval_pattern:
-                scale_midi.append(base_octave + root_idx + interval + (octave * 12))
-                
-        # Select notes for the chord
-        # degree 1 = index 0 in scale_midi
-        base_index = degree - 1
-        
-        chord_notes = []
-        for i in range(extension):
-            # Take every other note (tertiary harmony)
-            note_index = base_index + (i * 2)
-            if note_index < len(scale_midi):
-                chord_notes.append(scale_midi[note_index])
-                
-        return chord_notes
+        # Extended/Jazz
+        'ii7': (2, 'min7'), 'V7': (7, 'dom7'), 'iii7': (4, 'min7'), 
+        'vi7': (9, 'min7'), 'ii9': (2, 'min9'), 'V13': (7, 'dom13')
+    }
 
-    @classmethod
-    def get_progression(cls, genre: str) -> List[int]:
-        """Returns list of scale degrees for a genre"""
-        return cls.PROGRESSIONS.get(genre.lower(), cls.PROGRESSIONS['pop'])
+    # 🧮 Interval Definitions
+    CHORD_INTERVALS = {
+        'maj': [0, 4, 7],
+        'min': [0, 3, 7],
+        'dim': [0, 3, 6],
+        'dom': [0, 4, 7], # Basic major for simple
+        'maj7': [0, 4, 7, 11],
+        'min7': [0, 3, 7, 10],
+        'dom7': [0, 4, 7, 10],
+        'min9': [0, 3, 7, 10, 14],
+        'dom13': [0, 4, 7, 10, 14, 21]
+    }
+
+    def generate_progression(self, style: str, root_key_midi: int, scale_type: str = 'major'):
+        """
+        Returns a list of chord objects: [{'root': 60, 'intervals': [0, 4, 7], 'type': 'I'}, ...]
+        """
+        # 1. Select Template
+        # Alias Map for styles not explicitly defined
+        style_map = {
+             'boom_bap': 'trap', # Dark/Minor
+             'hip_hop': 'trap',
+             'indie': 'pop',
+             'metal': 'rock', 
+             'punk': 'rock',
+             'deep_house': 'house',
+             'soul': 'rnb',
+             'latin': 'pop', # or jazz? Let's go with pop/major for now
+             'reggaeton': 'pop',
+             'afrobeat': 'pop',
+             'funk': 'pop',
+             'disco': 'pop',
+             'dubstep': 'trap', # Dark/Minor
+             'ambient': 'lofi', # Chill/Atmospheric
+             'gospel': 'rnb',   # Soulful
+             'cinematic': 'trap' # Dramatic/Minor
+        }
+        
+        search_style = style_map.get(style.lower(), style.lower())
+        templates = self.PROGRESSIONS.get(search_style, self.PROGRESSIONS['generic'])
+        selected_progression = random.choice(templates)
+        
+        full_progression = []
+
+        # 2. Translate Roman Numerals to MIDI
+        for roman in selected_progression:
+            # Parse Roman Numeral
+            degree_offset, chord_type = self._parse_roman(roman)
+            
+            # Calculate actual root note
+            chord_root = root_key_midi + degree_offset
+            
+            # Get intervals
+            intervals = self.CHORD_INTERVALS.get(chord_type, [0, 4, 7])
+            
+            full_progression.append({
+                'root': chord_root,
+                'intervals': intervals,
+                'name': roman,
+                'absolute_notes': [chord_root + interval for interval in intervals]
+            })
+            
+        return full_progression
+
+    def get_chord_tones(self, chord_obj):
+        """Helper to extract playable notes for Arpeggiators/Melodies"""
+        return chord_obj['absolute_notes']
+
+    def _parse_roman(self, roman):
+        """Safe lookup for Roman numerals"""
+        if roman in self.ROMAN_MAP:
+            return self.ROMAN_MAP[roman]
+        # Default fallback if unknown
+        return (0, 'maj')

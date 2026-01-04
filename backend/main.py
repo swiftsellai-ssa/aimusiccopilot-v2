@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from typing import Dict
+from typing import Dict, Optional
 import datetime
 import os
 from pathlib import Path
@@ -121,6 +121,12 @@ from routers import projects as projects_router
 app.include_router(projects_router.router)
 
 # Mount static files to serve MIDI files
+# 1. Asigură-te că folderul există fizic
+os.makedirs("storage/midi_files", exist_ok=True)
+
+# 2. MONTAREA STATICĂ (Asta e cheia!)
+# Spunem serverului: "Când cineva cere URL-ul '/midi_files', dă-le fișierele din folderul 'storage/midi_files'"
+app.mount("/midi_files", StaticFiles(directory="storage/midi_files"), name="midi_files")
 app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
 # Importuri pentru generarea MIDI
@@ -130,6 +136,7 @@ from services.packager_service import ProjectPackager
 from services.recommendation_engine import RecommendationEngine
 from services.advanced_midi_generator import AdvancedPatternGenerator, PatternDNA
 from services.humanization_engine import HumanizationEngine
+from services.integrated_midi_generator import IntegratedMidiGenerator
 
 # OAuth2 scheme pentru autentificare
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -142,6 +149,25 @@ class RecommendationContext(BaseModel):
     scale: str = "minor"
     bpm: int = 120
 
+# Request model for V2 generator
+class MidiRequest(BaseModel):
+    description: str
+    instrument: str
+    musical_key: str = "C"
+    musical_scale: str = "minor"
+    
+    # --- CÂMPURI NOI PENTRU V2 (Adaugă-le pe acestea) ---
+    style: Optional[str] = "techno"
+    sub_option: Optional[str] = "full_kit"
+    complexity: Optional[str] = "intermediate"
+    # [NEW] Advanced V2 Parameters
+    structure: Optional[str] = "AABB" # e.g. AABA, ABAB
+    passing_tones: Optional[bool] = False
+    passing_tones: Optional[bool] = False
+    ghost_notes: Optional[bool] = True
+    bpm: Optional[int] = 120 # Added for filename and generation context
+
+
 # Funcție helper pentru a afla userul curent din token
 def get_current_user_email(token: str = Depends(oauth2_scheme)):
     try:
@@ -153,56 +179,104 @@ def get_current_user_email(token: str = Depends(oauth2_scheme)):
     except:
         raise HTTPException(status_code=401, detail="Invalid auth")
 
-@app.post("/api/generate/midi")
+from utils.rate_limiter import generation_limiter
+
+@app.post("/api/generate/midi", dependencies=[Depends(generation_limiter)])
 async def generate_midi(
-    description: str,
-    instrument: str = "full_drums",  # Instrument mode: 'full_drums', 'kick', 'bass', 'melody'
-    musical_key: str = "C",          # Musical key: 'C', 'D', 'F#', 'Bb', etc.
-    musical_scale: str = "minor",    # Scale type: 'minor', 'major', 'dorian', 'phrygian'
+    request: MidiRequest,
     current_email: str = Depends(get_current_user_email),
     db: Session = Depends(get_db)
 ):
-    """Endpoint pentru generarea MIDI modulară cu control complet asupra tonalității"""
+    """Endpoint pentru generarea MIDI modulară cu control complet asupra tonalității (V2)"""
+    print(f"Incoming request: {request}") # Debugging
 
     # 1. Găsim userul în DB pe baza emailului din token
     user = db.query(models.User).filter(models.User.email == current_email).first()
 
-    # 2. AI-ul analizează cererea ("The Architect")
-    brain = MusicIntelligence()
-    ai_params = brain.analyze_request(description)
-
-    # 3. Algoritmul generează notele ("The Builder") - cu key și scale dinamice
-    generator = MidiGenerator()
-    midi = generator.generate_track(
-        description,
-        musical_key=musical_key,
-        musical_scale=musical_scale,
-        instrument_mode=instrument,
-    )
-
-    # 4. Salvăm fișierul fizic în storage persistent cu informații complete
-    # Sanitize key for filename (replace # with 'sharp')
-    safe_key = musical_key.replace("#", "sharp")
-    filename = f"{instrument}_{safe_key}_{musical_scale}_{user.id}_{int(datetime.datetime.now().timestamp())}.mid"
-    file_path = STORAGE_DIR / filename
-
-    midi.save(file_path)
-
-    # 5. Salvăm în DB cu tag-uri complete
-    new_generation = models.Generation(
-        description=f"[{instrument.upper()}] {musical_key} {musical_scale.title()} - {description}",
-        file_path=str(file_path),
-        user_id=user.id
-    )
-    db.add(new_generation)
-    db.commit()
-
-    # Return JSON with file URL instead of FileResponse
-    return {
-        "file_url": f"/storage/midi_files/{filename}",
-        "filename": filename,
-        "message": "MIDI file generated successfully"
+    # --- FIX: Convertim String -> Float pentru complexitate ---
+    complexity_map = {
+        "beginner": 0.3,
+        "simple": 0.3,
+        "intermediate": 0.6,
+        "medium": 0.6,
+        "advanced": 0.9,
+        "complex": 0.9,
+        "expert": 1.0
     }
+    
+    # Transformăm complexitatea în număr (default 0.6)
+    numeric_complexity = complexity_map.get(str(request.complexity).lower(), 0.6)
+
+    try:
+        # 2. Folosim IntegratedMidiGenerator
+        generator = IntegratedMidiGenerator()
+        
+        # 3. Apelam functia de generare
+        # Note: IntegratedMidiGenerator.generate returns (midi_file, seed)
+        midi, seed = generator.generate(
+            description=request.description,
+            style=request.style,
+            instrument=request.instrument, # Fallback
+            sub_option=request.sub_option, # Primary variant context
+            complexity=numeric_complexity, # <--- Folosim valoarea NUMERICĂ!
+            key=request.musical_key,
+            scale_type=request.musical_scale, # Mapped to scale_type
+            use_dna=True,
+            # [NEW] Pass advanced params via kwargs
+            structure=request.structure,
+            passing_tones=request.passing_tones,
+            ghost_notes=request.ghost_notes,
+            bpm=request.bpm # Pass BPM to generator
+        )
+
+        # 4. Salvăm fișierul
+        safe_key = request.musical_key.replace("#", "sharp")
+        safe_style = request.style.capitalize()
+        safe_inst = request.instrument.capitalize()
+        # Handle None sub_option safely
+        sub_opt = request.sub_option if request.sub_option else "default"
+        safe_sub = sub_opt.capitalize().replace("_", "")
+        bpm_val = request.bpm if request.bpm else 120
+        
+        # Define variant for DB description (fallback to instrument if default)
+        variant = request.sub_option if request.sub_option else request.instrument
+        
+        # Professional Filename: amc_{Style}_{Instrument}_{SubOption}_{Key}_{BPM}bpm.mid
+        filename = f"amc_{safe_style}_{safe_inst}_{safe_sub}_{safe_key}_{bpm_val}bpm.mid"
+        file_path = STORAGE_DIR / filename
+        
+        # Ensure we pass bpm to generator if it wasn't autodetected well? 
+        # Actually logic above uses request.bpm implicitly via kwargs if I unpack?
+        # generator.generate takes **kwargs. 
+        # But wait, looking at line 212 call: I didn't pass bpm explicitly there!
+        # I need to add bpm=request.bpm to the generate call too if I want it respected.
+
+        midi.save(file_path)
+
+        # 5. Salvăm în DB
+        new_generation = models.Generation(
+            description=f"[{variant.upper()}] {request.musical_key} {request.musical_scale.title()} - {request.description}",
+            file_path=str(file_path),
+            user_id=user.id
+        )
+        db.add(new_generation)
+        db.commit()
+
+        # Returnăm URL-ul pentru frontend
+        # FIX: Returnăm URL-ul PUBLIC (cel cu /midi_files), nu calea de pe disc
+        return {
+            "url": f"/midi_files/{filename}",  # <--- FĂRĂ "storage/" AICI!
+            "filename": filename,
+            "status": "success",
+            "seed": seed
+        }
+
+    except Exception as e:
+        print(f"Error generating MIDI: {str(e)}")
+        # Log traceback
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/generate/advanced")
 async def generate_advanced(

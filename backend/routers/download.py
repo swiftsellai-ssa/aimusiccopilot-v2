@@ -13,7 +13,7 @@ midi_gen = MidiGenerator()
 
 @router.post("/package")
 async def download_package(
-    project_name: str = "SwiftSell Track",
+    project_name: str = "amc Track",
     bpm: int = 120,
     style: str = "Techno"
 ):

@@ -1,488 +1,146 @@
-# AI Music Copilot
+# amc (AI Music Co-pilot) 🎹
 
-Advanced AI-powered MIDI generation platform with DNA-based pattern algorithms.
+**amc** (formerly SwiftSell AI) is an advanced AI-powered MIDI generation platform designed to act as a creative partner for musicians and producers. Unlike random note generators, **amc** uses music theory constraints, style-specific algorithms, and sophisticated "humanization" engines to create professional-grade loops that are drag-and-drop ready for any DAW.
 
----
-
-## Features
-
-### Complete Track Generation
-- Full multi-track MIDI generation
-- AI-powered composition
-- Style-aware arrangements
-- Ableton export support
-- Pattern DNA analysis
-
-### DNA Pattern Generator
-- Individual instrument pattern generation
-- Advanced DNA parameters (density, complexity, groove, evolution)
-- Humanization engine for natural feel
-- 5 music styles: Techno, Trap, House, DnB, Lo-Fi
-- 15+ instruments: drums and melodic elements
-- Preset system for quick workflows
-- Real-time parameter control
-
-### Multi-Track Projects (New! 🎼)
-- Combine drums, bass, melody into full arrangements
-- Professional mixer controls (volume, pan, mute, solo)
-- Export as Type 1 MIDI for any DAW
-- Visual track timeline editor
-- DNA parameters preserved per track
-- Project-level settings (BPM, key, scale)
-- Track variations with A/B testing (coming soon)
-
-### Social & Sharing Features
-- Share generations publicly with unique links
-- Public gallery with trending/popular patterns
-- Community voting (upvote/downvote)
-- Preset marketplace for sharing custom presets
-- Engagement tracking (views, plays, downloads)
+> **Philosophy:** "Complexity in Simplicity." We hide sophisticated music theory engines behind a simple, intuitive interface.
 
 ---
 
-## Quick Start
+## 🚀 Key Features (v2)
+
+### 🧠 Advanced Intelligence Engines
+* **Pattern Intelligence:** Generates logical phrases using **AABA**, **ABAB**, or **Call-and-Response** structures rather than repetitive loops.
+* **Harmonic Engine:** Replaces random pitch selection with style-specific functional harmony (e.g., **ii-V-I** for Jazz, **i-VI-III-VII** for Trap) and intelligent voice leading.
+* **Rhythm Engine:** Applies genre-specific swing (e.g., *Tresillo* for Reggaeton, *Tumbao* for Latin Bass) and generates "ghost notes" for realism.
+* **Production Engine:** Automation for Velocity (Dynamics) and Articulation (Staccato/Legato).
+
+### 🌍 Extended Style Library (15+ Genres)
+Support for over 15 distinct genres with unique algorithmic definitions:
+
+| Category | Styles | Distinctive Features |
+| :--- | :--- | :--- |
+| **Electronic** | Techno, House, Deep House, Trap, DnB | Rolling Hi-Hats, Offbeat Bass, Buildups |
+| **Urban** | Hip Hop, Boom Bap, Lofi, RnB | Laid-back Swing, Ghost Kicks, Jazz Chords |
+| **Pop/Rock** | Pop, Rock, Indie, Funk, Disco | Strong Backbeats, Power Chords, Walking Bass |
+| **Jazz/Soul** | Jazz, Soul, Gospel | ii-V-I Progressions, 8th Note Swing, Extended Chords |
+| **World** | Reggaeton, Latin, Afrobeat | Tresillo Rhythms, Tumbao Bass, Percussion Fills |
+| **Hard** | Metal, Punk | Aggressive Velocity, Fast Tempos |
+
+### 🎼 Multi-Track Projects
+* Combine Drums, Bass, and Melody into full arrangements.
+* **Smart Export:** Files are automatically named with professional metadata (e.g., `amc_Latin_Bass_Verse_Cm_100bpm.mid`).
+
+---
+
+## 🛠️ Tech Stack
+
+* **Frontend:** Next.js 14, TypeScript, Tailwind CSS, Tone.js (Audio Preview & Visualization).
+* **Backend:** Python 3.10+, FastAPI, Pydantic, SQLAlchemy.
+* **Audio/MIDI:** Custom Python MIDI construction algorithms (Mido).
+* **Deployment:** Docker / Render.
+
+---
+
+## ⚡ Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- npm or yarn
+* Python 3.10+
+* Node.js 18+
 
-### Installation
-
-#### Backend Setup
+### 1. Backend Setup
 ```bash
 cd backend
 
 # Create virtual environment
 python -m venv venv
 
-# Activate virtual environment
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Mac/Linux
+# Activate (Windows)
+venv\Scripts\activate
+# Activate (Mac/Linux)
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run database migrations (if needed)
-alembic upgrade head
+# Run the server
+uvicorn main:app --reload
 ```
+The backend API will be available at `http://localhost:8000`.
 
-#### Frontend Setup
+### 2. Frontend Setup
 ```bash
 cd frontend
 
 # Install dependencies
 npm install
-```
 
-### Running the Application
-
-#### Start Backend
-```bash
-cd backend
-venv\Scripts\activate
-uvicorn main:app --reload
-```
-Backend runs at: http://localhost:8000
-
-Swagger UI: http://localhost:8000/docs
-
-#### Start Frontend
-```bash
-cd frontend
+# Start the development server
 npm run dev
 ```
-Frontend runs at: http://localhost:3000
+The application will be available at `http://localhost:3000`.
 
 ---
 
-## Project Structure
+
+## 📂 Project Structure
 
 ```
-aimusiccopilot/
+amc/
 ├── backend/
-│   ├── main.py                          # FastAPI application
-│   ├── models/                          # Database models
-│   ├── routers/                         # API routes
-│   │   ├── auth.py                     # Authentication
-│   │   ├── download.py                 # File downloads
-│   │   └── integrated_midi.py          # Pattern generator API
-│   ├── services/                        # Business logic
-│   │   ├── integrated_midi_generator.py # Main pattern generator
-│   │   ├── advanced_midi_generator.py   # DNA-based patterns
-│   │   ├── humanization_engine.py       # Timing humanization
-│   │   ├── midi_generator.py            # Basic MIDI generation
-│   │   ├── ai_service.py                # AI intelligence
-│   │   ├── packager_service.py          # Project packaging
-│   │   └── recommendation_engine.py     # Recommendations
-│   ├── utils/                           # Utilities
-│   ├── storage/                         # Generated files
-│   │   ├── integrated_midi/            # Pattern files
-│   │   └── generations/                # Complete tracks
-│   ├── examples/                        # Example scripts
-│   └── requirements.txt                 # Python dependencies
+│   ├── main.py                      # FastAPI Entry Point
+│   ├── services/
+│   │   ├── integrated_midi_generator.py # MAIN ORCHESTRATOR
+│   │   ├── pattern_intelligence.py      # Structure (AABA)
+│   │   ├── harmonic_engine.py           # Theory (Chords/Scales)
+│   │   ├── rhythm_engine.py             # Groove & Ghost Notes
+│   │   ├── production_engine.py         # Velocity & Humanization
+│   │   └── style_patterns.py            # Genre Definitions
+│   └── output/                          # Generated MIDI files
 │
-├── frontend/
-│   ├── app/                             # Next.js app directory
-│   │   ├── page.tsx                    # Main page
-│   │   └── pattern-generator/
-│   │       └── page.tsx                # Pattern generator page
-│   ├── src/
-│   │   └── components/                 # React components
-│   │       ├── IntegratedMidiGenerator.jsx
-│   │       ├── IntegratedMidiGenerator.tsx
-│   │       ├── IntegratedMidiGenerator.css
-│   │       ├── MusicPlayer.tsx
-│   │       ├── MidiVisualizer.tsx
-│   │       └── ...
-│   └── package.json                    # npm dependencies
-│
-└── Documentation/
-    ├── README.md                        # This file
-    ├── SETUP_AND_RUN.md                # Setup guide
-    ├── NEXTJS_INTEGRATION_GUIDE.md     # Integration guide
-    ├── API_TESTING_GUIDE.md            # API testing
-    └── backend/
-        ├── INTEGRATION_COMPLETE.md     # Integration status
-        ├── QUICKSTART_INTEGRATED.md    # Quick reference
-        └── services/
-            ├── QUICK_REFERENCE.md      # API reference
-            ├── ARCHITECTURE.md         # Architecture docs
-            └── ...
+└── frontend/
+    ├── src/
+    │   ├── components/
+    │   │   ├── EnhancedGenerator.tsx    # Main UI
+    │   │   ├── MidiVisualizer.tsx       # Canvas Piano Roll
+    │   │   └── ...
+    │   └── constants/
+    │       └── musicStyles.ts           # Frontend Style Config
 ```
 
 ---
 
-## API Endpoints
+## 🔌 API Endpoints
 
-### Authentication
-- `POST /token` - Login and get JWT token
-- `POST /register` - Create new account
+### Generation (v2)
+* `POST /api/generate/midi` - The core endpoint for the new engine.
+    * **Params**: `style`, `instrument`, `sub_option` (e.g., 'groove_bass'), `complexity` ('expert' enables AABA/Passing Tones), `key`, `bpm`.
 
-### Complete Track Generation (v2)
-- `POST /api/v2/generate/complete` - Generate full track
-- `POST /api/v2/generate/layer` - Generate single layer
-- `GET /api/v2/download/{id}` - Download generation
-- `GET /api/history` - Get generation history
-- `POST /api/recommendations` - Get AI recommendations
-
-### Pattern Generator (Integrated MIDI)
-- `GET /api/integrated-midi/styles` - Get available styles
-- `GET /api/integrated-midi/instruments` - Get instruments
-- `GET /api/integrated-midi/presets` - Get DNA presets
-- `POST /api/integrated-midi/quick-generate` - Quick generation
-- `POST /api/integrated-midi/generate` - Advanced generation
-- `GET /api/integrated-midi/download/{id}` - Download pattern
+### Legacy / Utility
+* `GET /api/styles` - Get available styles.
+* `GET /midi_files/{filename}` - Download generated MIDI.
 
 ---
 
-## Usage Examples
+## 🗺️ Roadmap & Status
 
-### Quick Pattern Generation (API)
-
-```bash
-# Login
-TOKEN=$(curl -X POST "http://localhost:8000/token" \
-  -d "username=user@example.com&password=password" \
-  | jq -r '.access_token')
-
-# Generate pattern
-curl -X POST "http://localhost:8000/api/integrated-midi/quick-generate?description=techno%20kick&style=techno" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### Advanced Pattern Generation (API)
-
-```bash
-curl -X POST http://localhost:8000/api/integrated-midi/generate \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "dark techno kick",
-    "style": "techno",
-    "instrument": "kick",
-    "bpm": 130,
-    "bars": 4,
-    "use_dna": true,
-    "humanize": true,
-    "density": 0.7,
-    "complexity": 0.6,
-    "groove": 0.2,
-    "evolution": 0.3
-  }'
-```
-
-### Using the Frontend
-
-1. **Navigate to Pattern Generator**: http://localhost:3000/pattern-generator
-2. **Quick Generate**: Enter description, select style, click "Quick Generate"
-3. **Advanced Mode**: Expand "Advanced Parameters" for full control
-4. **DNA Parameters**: Adjust sliders for density, complexity, groove, evolution
-5. **Download**: Click download button to get MIDI file
+[x] **Phase 1**: Core MIDI Generation.
+[x] **Phase 2**: Advanced Engines (Pattern, Rhythm, Harmony).
+[x] **Phase 3**: Style Library Expansion (15+ Genres).
+[x] **Phase 4**: Professional UI/UX (Visualizer, Dark Mode).
+[x] **Phase 5**: Smart Export & File Naming.
+[ ] **Phase 6**: Arrangement Mode (Verse/Chorus Sequence Builder).
+[ ] **Phase 7**: VST Plugin Integration.
 
 ---
 
-## Technology Stack
+## 🤝 Contributing
 
-### Backend
-- **FastAPI** - Modern Python web framework
-- **SQLAlchemy** - Database ORM
-- **JWT** - Authentication
-- **mido** - MIDI file handling
-- **numpy** - Mathematical operations
+This project is part of a **#buildinpublic** journey. Feedback, PRs, and feature requests are welcome!
 
-### Frontend
-- **Next.js** - React framework
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **axios** - HTTP client
-
-### AI/Generation
-- **Custom DNA Algorithm** - Pattern generation
-- **Humanization Engine** - Natural timing
-- **Music Intelligence** - AI recommendations
+Built with 💜 by Gabriel. @swiftsell_ai
 
 ---
 
-## Configuration
+## 📚 Documentation
 
-### Environment Variables
-
-Create `.env` file in backend directory:
-
-```env
-SECRET_KEY=your-secret-key-here
-DATABASE_URL=sqlite:///./music_copilot.db
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-
-### Frontend Configuration
-
-Update API base URL in frontend if needed:
-
-```typescript
-// frontend/src/config.ts
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-```
-
----
-
-## Development
-
-### Running Tests
-
-#### Backend Tests
-```bash
-cd backend
-pytest
-python -m pytest tests/
-```
-
-#### Integration Tests
-```bash
-python test_integration.py
-```
-
-#### Frontend Tests
-```bash
-cd frontend
-npm test
-npm run lint
-```
-
-### Running Demo Scripts
-
-```bash
-cd backend
-python examples/integrated_generator_demo.py
-```
-
-This generates 6 example MIDI files in `backend/output/demo/`
-
----
-
-## Deployment
-
-### Backend Deployment
-
-```bash
-# Install production dependencies
-pip install -r requirements.txt
-
-# Run with gunicorn
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-```
-
-### Frontend Deployment
-
-```bash
-# Build for production
-npm run build
-
-# Start production server
-npm start
-```
-
-### Docker Deployment (Optional)
-
-```dockerfile
-# Backend Dockerfile
-FROM python:3.9
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
----
-
-## Documentation
-
-- **[SETUP_AND_RUN.md](SETUP_AND_RUN.md)** - Complete setup guide
-- **[NEXTJS_INTEGRATION_GUIDE.md](NEXTJS_INTEGRATION_GUIDE.md)** - Frontend integration
-- **[API_TESTING_GUIDE.md](API_TESTING_GUIDE.md)** - API testing guide
-- **[backend/INTEGRATION_COMPLETE.md](backend/INTEGRATION_COMPLETE.md)** - Integration details
-- **[backend/QUICKSTART_INTEGRATED.md](backend/QUICKSTART_INTEGRATED.md)** - Quick reference
-- **[backend/services/ARCHITECTURE.md](backend/services/ARCHITECTURE.md)** - System architecture
-
----
-
-## Features in Detail
-
-### DNA-Based Pattern Generation
-
-The pattern generator uses a sophisticated DNA system:
-
-- **Density** (0.0-1.0): Controls how many notes are in the pattern
-- **Complexity** (0.0-1.0): Determines pattern variation and intricacy
-- **Groove** (0.0-1.0): Adds swing and timing feel
-- **Evolution** (0.0-1.0): Pattern changes over time
-- **Velocity Curve**: Natural, Accent, Exponential, Random
-
-### Humanization Engine
-
-Makes patterns feel more natural:
-
-- Timing variations (±10ms)
-- Velocity randomization
-- Micro-timing adjustments
-- Musical feel preservation
-
-### Style Support
-
-Five distinct music styles with appropriate defaults:
-
-- **Techno**: 130 BPM, 4/4, minimal and driving
-- **Trap**: 140 BPM, complex hi-hats, 808 bass
-- **House**: 125 BPM, groovy, four-to-the-floor
-- **DnB**: 174 BPM, fast breaks, rolling bass
-- **Lo-Fi**: 85 BPM, laid-back, jazzy
-
-### Instrument Categories
-
-**Drums:**
-- kick, snare, hat, clap, rim, tom, crash, ride, perc, drums
-
-**Melodic:**
-- bass, melody, lead, pad, synth
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Backend won't start**
-- Check Python version: `python --version` (need 3.8+)
-- Verify virtual environment is activated
-- Reinstall dependencies: `pip install -r requirements.txt`
-
-**Frontend won't start**
-- Check Node version: `node --version` (need 16+)
-- Clear cache: `rm -rf node_modules && npm install`
-- Check for port conflicts on 3000
-
-**401 Unauthorized errors**
-- Verify you're logged in
-- Check token in localStorage
-- Token may be expired - login again
-
-**MIDI files not generating**
-- Check storage directory exists
-- Verify database connection
-- Check logs for errors
-
-**Download not working**
-- Ensure proper token in Authorization header
-- Check CORS configuration
-- Verify file exists in storage
-
-See [SETUP_AND_RUN.md](SETUP_AND_RUN.md) for detailed troubleshooting.
-
----
-
-## Contributing
-
-### Development Workflow
-
-1. Create feature branch: `git checkout -b feature/new-feature`
-2. Make changes and test
-3. Run tests: `pytest` and `npm test`
-4. Commit changes: `git commit -m "Add new feature"`
-5. Push and create PR
-
-### Code Style
-
-**Python:**
-- Follow PEP 8
-- Use type hints
-- Add docstrings
-
-**TypeScript:**
-- Use ESLint configuration
-- Follow React best practices
-- Add JSDoc comments
-
----
-
-## License
-
-[Your License Here]
-
----
-
-## Credits
-
-Built with:
-- FastAPI
-- Next.js
-- mido (MIDI library)
-- And many other amazing open source projects
-
----
-
-## Support
-
-For issues and questions:
-- Check documentation first
-- Review troubleshooting guide
-- Check existing issues
-- Create new issue with details
-
----
-
-## Roadmap
-
-- [ ] Multi-track pattern generation
-- [ ] MIDI CC automation
-- [ ] More music styles
-- [ ] VST plugin integration
-- [ ] Cloud storage integration
-- [ ] Collaborative features
-- [ ] Mobile app
-
----
-
-**Happy music making! 🎵🎹🎶**
+For more detailed guides on API usage, testing, and architecture, please refer to the `Documentation/` directory.
