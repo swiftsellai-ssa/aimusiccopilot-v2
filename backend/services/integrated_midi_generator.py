@@ -72,6 +72,7 @@ class IntegratedMidiGenerator:
                  use_dna: bool = None,
                  humanize: bool = None,
                  seed: int = None,
+                 forced_context: list = None, # 1. Update Signature
                  **kwargs) -> Tuple[mido.MidiFile, int]:
         # ... (generate method validation logic remains) ...
         # Copied context for safety
@@ -113,6 +114,7 @@ class IntegratedMidiGenerator:
             if use_dna or is_advanced_style:
                 # Remove style and instrument from kwargs to avoid duplicate arguments
                 dna_kwargs = {k: v for k, v in kwargs.items() if k not in ['style', 'instrument']}
+                dna_kwargs['forced_context'] = forced_context # Pass explicit param explicitly
                 midi_file = self._generate_with_dna(
                     description=description,
                     style=style,
@@ -167,6 +169,7 @@ class IntegratedMidiGenerator:
                            style: str,
                            instrument: str,
                            humanize: bool,
+                           forced_context: list = None,
                            **kwargs) -> mido.MidiFile:
         """
         Generează pattern-ul (4 Măsuri), aplică logica de note și scrie fișierul MIDI.
@@ -285,23 +288,32 @@ class IntegratedMidiGenerator:
         scale = kwargs.get('scale_type', 'minor')
         sub_option = kwargs.get('sub_option', 'full_kit')
         
-        # [NEW] Phase 6: Generate Master Chord Progression
-        # Convert Root Key to MIDI (e.g. C -> 60)
-        # Use existing helper or assume C4=60 + offset
-        try:
-             root_key_midi = self.music_theory._note_to_midi(key, 4) 
-        except:
-             root_key_midi = 60 # C4 default
+        # [NEW] Phase 7: Context Overrides
+        # Support both explicit param and kwargs (for backward compat/API flexibility)
+        ctx = forced_context or kwargs.get('context_chords')
+        
+        if ctx:
+             # 2. Override Harmonic Logic
+             # 4. Handle Length Mismatch (handled inside helper)
+             master_progression = self._parse_context_to_progression(ctx, total_bars=NUM_BARS)
+             logger.info(f"🔒 Context Locked: Using {len(master_progression)} user-defined chords (Target Bars: {NUM_BARS})")
              
-        # Generate Progression
-        master_progression = self.music_theory_engine.generate_progression(style, root_key_midi, scale)
-        logger.info(f"🎹 Generated Progression ({style}): {[c['name'] for c in master_progression]}")
+        else:
+            # [NEW] Phase 6: Generate Master Chord Progression
+            # Convert Root Key to MIDI (e.g. C -> 60)
+            try:
+                 root_key_midi = self.music_theory._note_to_midi(key, 4) 
+            except:
+                 root_key_midi = 60 
+                 
+            master_progression = self.music_theory_engine.generate_progression(style, root_key_midi, scale)
+            logger.info(f"🎹 Generated Progression ({style}): {[c['name'] for c in master_progression]}")
         
         events_with_pitch = self._add_pitch_to_events(
             full_events, 
             instrument, 
             sub_option, 
-            kwargs.get('channel', 9),
+            kwargs.get('channel', 9), # Fixed args
             key, 
             scale, 
             style,
@@ -827,3 +839,40 @@ class IntegratedMidiGenerator:
             ))
 
             last_tick = msg['tick']
+
+    def _parse_context_to_progression(self, context_chords: List[Dict], total_bars: int = 4) -> List[Dict]:
+        """
+        Parses user-provided context chords into the internal progression format.
+        Handles length mismatch by looping context.
+        """
+        master_progression = []
+        if not context_chords:
+            return []
+            
+        # Determine context length
+        context_len = len(context_chords)
+        
+        # Loop context to fill total bars
+        for bar_idx in range(total_bars):
+            # Wrap around using modulo
+            source_chord = context_chords[bar_idx % context_len]
+            
+            # Extract data
+            notes = source_chord['notes']
+            chord_name = source_chord['chord']
+            
+            # Reconstruct absolute notes (Octave 4 default)
+            abs_notes = [60 + pc if pc < 12 else pc for pc in notes]
+            abs_notes.sort()
+            
+            # Determine root
+            root_note = abs_notes[0] if abs_notes else 60
+            
+            master_progression.append({
+                'name': chord_name,
+                'root': root_note,
+                'absolute_notes': abs_notes,
+                'intervals': [n - root_note for n in abs_notes]
+            })
+            
+        return master_progression

@@ -1,0 +1,432 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+    Play, Plus, ArrowUp, ArrowDown, X, Music,
+    Box, Settings, Clock, BarChart3, ChevronRight,
+    Save, FolderOpen, Upload
+} from 'lucide-react';
+import { MUSIC_STYLES } from '../../constants/musicStyles';
+import MidiVisualizer from '../../components/MidiVisualizer';
+
+interface Block {
+    id: string;
+    type: string; // intro, verse, chorus, bridge, outro
+    bars: number;
+    intensity: 'low' | 'medium' | 'high';
+    color: string;
+}
+
+const BLOCK_TYPES = [
+    { type: 'intro', label: 'Intro', defBars: 4, color: 'bg-emerald-600' },
+    { type: 'verse', label: 'Verse', defBars: 8, color: 'bg-blue-600' },
+    { type: 'chorus', label: 'Chorus', defBars: 8, color: 'bg-purple-600' },
+    { type: 'bridge', label: 'Bridge', defBars: 4, color: 'bg-orange-600' },
+    { type: 'outro', label: 'Outro', defBars: 4, color: 'bg-red-600' }
+];
+
+interface ProjectFile {
+    version: string;
+    timestamp: number;
+    settings: {
+        key: string;
+        scale: string;
+        bpm: number;
+        style: string;
+    };
+    timeline: Block[];
+}
+
+export default function StudioPage() {
+    // Project State
+    const [timeline, setTimeline] = useState<Block[]>([]);
+    const [style, setStyle] = useState('techno');
+    const [bpm, setBpm] = useState(124);
+    const [musicalKey, setMusicalKey] = useState('C');
+    const [musicalScale, setMusicalScale] = useState('minor');
+
+    // UI State
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // --- Persistence ---
+
+    const handleSaveProject = () => {
+        const project: ProjectFile = {
+            version: '1.0',
+            timestamp: Date.now(),
+            settings: {
+                key: musicalKey,
+                scale: musicalScale,
+                bpm: bpm,
+                style: style
+            },
+            timeline: timeline
+        };
+
+        const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `amc_project_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleLoadProject = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const project = JSON.parse(event.target?.result as string) as ProjectFile;
+
+                // version check (optional)
+
+                // Restore State
+                setMusicalKey(project.settings.key);
+                setMusicalScale(project.settings.scale);
+                setBpm(project.settings.bpm);
+                setStyle(project.settings.style);
+                setTimeline(project.timeline);
+
+                // Feedback
+                alert("Project Loaded Successfully!");
+
+            } catch (err) {
+                console.error("Failed to parse project file", err);
+                alert("Invalid project file.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    // --- Actions ---
+
+    const addBlock = (blockDef: typeof BLOCK_TYPES[0]) => {
+        const newBlock: Block = {
+            id: `${blockDef.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: blockDef.type,
+            bars: blockDef.defBars,
+            intensity: 'medium',
+            color: blockDef.color
+        };
+        setTimeline([...timeline, newBlock]);
+    };
+
+    const removeBlock = (index: number) => {
+        const newTimeline = [...timeline];
+        newTimeline.splice(index, 1);
+        setTimeline(newTimeline);
+    };
+
+    const moveBlock = (index: number, direction: 'up' | 'down') => {
+        if (direction === 'up' && index === 0) return;
+        if (direction === 'down' && index === timeline.length - 1) return;
+
+        const newTimeline = [...timeline];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+        [newTimeline[index], newTimeline[targetIndex]] = [newTimeline[targetIndex], newTimeline[index]];
+
+        setTimeline(newTimeline);
+    };
+
+    const updateBlock = (index: number, updates: Partial<Block>) => {
+        const newTimeline = [...timeline];
+        newTimeline[index] = { ...newTimeline[index], ...updates };
+        setTimeline(newTimeline);
+    };
+
+    const handleGenerate = async () => {
+        if (timeline.length === 0) return alert("Add at least one block!");
+
+        setIsGenerating(true);
+        setDownloadUrl(null);
+
+        try {
+            const token = localStorage.getItem('token'); // Assuming generated by main app logic
+
+            const payload = {
+                name: `Studio Session ${new Date().toLocaleTimeString()}`,
+                style: style,
+                instrument: "full_kit",
+                bpm: bpm,
+                key: musicalKey,
+                scale: musicalScale,
+                blocks: timeline.map(b => ({
+                    type: b.type,
+                    bars: b.bars,
+                    intensity: b.intensity
+                }))
+            };
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/generate/arrangement`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                if (res.status === 401) throw new Error("Please log in via the main page first.");
+                throw new Error("Generation failed");
+            }
+
+            const data = await res.json();
+            const fullUrl = data.url.startsWith('http') ? data.url : `${process.env.NEXT_PUBLIC_API_URL}${data.url}`;
+            setDownloadUrl(fullUrl);
+
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    // Stats
+    const totalBars = timeline.reduce((acc, b) => acc + b.bars, 0);
+    const estDuration = (totalBars * 4 * 60) / (bpm || 120);
+    const minutes = Math.floor(estDuration / 60);
+    const seconds = Math.floor(estDuration % 60);
+
+    return (
+        <div className="min-h-screen bg-gray-950 text-white flex flex-col md:flex-row font-sans">
+
+            {/* SIDEBAR - LIBRARY */}
+            <aside className="w-full md:w-64 bg-gray-900 border-r border-gray-800 p-6 flex flex-col gap-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                        <Box className="text-purple-400" />
+                        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                            amc Studio
+                        </h1>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            title="Open Project"
+                        >
+                            <FolderOpen size={18} />
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleLoadProject}
+                            className="hidden"
+                            accept=".json"
+                        />
+                        <button
+                            onClick={handleSaveProject}
+                            className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            title="Save Project"
+                        >
+                            <Save size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Block Library</h2>
+                    <div className="space-y-2">
+                        {BLOCK_TYPES.map(bt => (
+                            <button
+                                key={bt.type}
+                                onClick={() => addBlock(bt)}
+                                className={`w-full text-left px-4 py-3 rounded-xl transition-all hover:translate-x-1 flex items-center justify-between group ${bt.color} bg-opacity-20 hover:bg-opacity-30 border border-transparent hover:border-${bt.color.split('-')[1]}-400/50`}
+                            >
+                                <span className="font-bold text-sm tracking-wide">{bt.label}</span>
+                                <Plus size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-auto pt-6 border-t border-gray-800">
+                    <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Project Settings</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-xs text-gray-400 block mb-1">Style</label>
+                            <select value={style} onChange={e => setStyle(e.target.value)} className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+                                {MUSIC_STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-xs text-gray-400 block mb-1">Key</label>
+                                <div className="flex gap-2">
+                                    <select value={musicalKey} onChange={e => setMusicalKey(e.target.value)} className="w-16 bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+                                        {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map(k => <option key={k} value={k}>{k}</option>)}
+                                    </select>
+                                    <select value={musicalScale} onChange={e => setMusicalScale(e.target.value)} className="flex-1 bg-gray-800 border border-gray-700 rounded p-2 text-sm">
+                                        {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'].map(s => (
+                                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-400 block mb-1">BPM</label>
+                                <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-sm" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            {/* MAIN AREA - TIMELINE */}
+            <main className="flex-1 p-6 md:p-10 flex flex-col h-screen overflow-hidden">
+
+                {/* TIMELINE LIST */}
+                <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                    {timeline.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-gray-800 rounded-2xl">
+                            <Music size={48} className="mb-4 opacity-50" />
+                            <p className="text-lg">Your arrangement is empty.</p>
+                            <p className="text-sm">Add blocks from the library to start building.</p>
+                        </div>
+                    ) : (
+                        timeline.map((block, index) => (
+                            <div key={block.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 flex items-center gap-4 animate-in slide-in-from-right-4 duration-300">
+
+                                {/* Index */}
+                                <span className="text-gray-600 font-mono text-xs w-6">{(index + 1).toString().padStart(2, '0')}</span>
+
+                                {/* Type Badge */}
+                                <div className={`w-24 h-10 flex items-center justify-center rounded-lg font-bold text-xs uppercase tracking-wider ${block.color} shadow-lg shadow-black/20`}>
+                                    {block.type}
+                                </div>
+
+                                {/* Controls */}
+                                <div className="flex items-center gap-4 flex-1">
+                                    <div>
+                                        <label className="text-[10px] text-gray-500 block uppercase font-bold">Bars</label>
+                                        <select
+                                            value={block.bars}
+                                            onChange={e => updateBlock(index, { bars: Number(e.target.value) })}
+                                            className="bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm w-20 focus:border-blue-500 outline-none transition-colors"
+                                        >
+                                            {[4, 8, 16, 32].map(b => <option key={b} value={b}>{b} Bars</option>)}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] text-gray-500 block uppercase font-bold">Intensity</label>
+                                        <div className="flex bg-gray-900 rounded p-0.5">
+                                            {['low', 'medium', 'high'].map(lvl => (
+                                                <button
+                                                    key={lvl}
+                                                    onClick={() => updateBlock(index, { intensity: lvl as any })}
+                                                    className={`px-2 py-0.5 rounded text-[10px] uppercase ${block.intensity === lvl ? 'bg-gray-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                >
+                                                    {lvl[0]}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-2 border-l border-gray-700 pl-4">
+                                    <div className="flex flex-col gap-1">
+                                        <button
+                                            onClick={() => moveBlock(index, 'up')}
+                                            disabled={index === 0}
+                                            className="p-1 hover:bg-gray-700 rounded text-gray-400 disabled:opacity-30"
+                                        >
+                                            <ArrowUp size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => moveBlock(index, 'down')}
+                                            disabled={index === timeline.length - 1}
+                                            className="p-1 hover:bg-gray-700 rounded text-gray-400 disabled:opacity-30"
+                                        >
+                                            <ArrowDown size={14} />
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => removeBlock(index)}
+                                        className="p-2 hover:bg-red-900/30 text-gray-500 hover:text-red-400 rounded-lg transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* VISUALIZER (NEW) */}
+                {downloadUrl && (
+                    <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4 animate-in fade-in slide-in-from-bottom-4">
+                        {/* We need to extract the filename from the URL or just pass the URL */}
+                        {/* Note: Studio generates a full arrangement URL. MidiVisualizer handles loading. */}
+                        <MidiVisualizer
+                            midiUrl={downloadUrl}
+                            instrument="full_kit" // Default style
+                            height={150}
+                            musicalKey={musicalKey}
+                            musicalScale={musicalScale}
+                        />
+                    </div>
+                )}
+
+                {/* BOTTOM STATS BAR */}
+                <div className="mt-6 bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gray-800 rounded-lg text-blue-400"><BarChart3 size={20} /></div>
+                            <div>
+                                <span className="text-xs text-gray-500 uppercase font-bold block">Total Bars</span>
+                                <span className="text-xl font-mono font-bold">{totalBars}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gray-800 rounded-lg text-emerald-400"><Clock size={20} /></div>
+                            <div>
+                                <span className="text-xs text-gray-500 uppercase font-bold block">Est. Duration</span>
+                                <span className="text-xl font-mono font-bold">{minutes}m {seconds}s</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                        {downloadUrl && (
+                            <a
+                                href={downloadUrl}
+                                download
+                                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition-all shadow-lg shadow-green-900/20"
+                            >
+                                <Music size={20} /> Download Song
+                            </a>
+                        )}
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isGenerating || timeline.length === 0}
+                            className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all shadow-lg ${isGenerating
+                                ? 'bg-gray-700 cursor-not-allowed opacity-50'
+                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-[1.02] shadow-purple-900/20'}`}
+                        >
+                            {isGenerating ? (
+                                <span className="animate-pulse">Stitching...</span>
+                            ) : (
+                                <>
+                                    <Play size={20} fill="currentColor" /> Generate Arrangement
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    );
+}

@@ -21,7 +21,7 @@ from models import social  # Import social/sharing models
 from models import projects  # Import multi-track project models
 from routers import auth
 from routers import download
-from routers.auth import get_db
+from routers.auth import get_db, get_current_user_email, oauth2_scheme
 from utils.security import ALGORITHM, SECRET_KEY
 
 # Configurare Logging
@@ -120,6 +120,14 @@ app.include_router(social_router.router)
 from routers import projects as projects_router
 app.include_router(projects_router.router)
 
+# Include Arrangement router (Phase 6)
+from routers import arrangement
+app.include_router(arrangement.router)
+
+# Include Analysis router (Phase 7)
+from routers import analysis
+app.include_router(analysis.router)
+
 # Mount static files to serve MIDI files
 # 1. Asigură-te că folderul există fizic
 os.makedirs("storage/midi_files", exist_ok=True)
@@ -138,8 +146,8 @@ from services.advanced_midi_generator import AdvancedPatternGenerator, PatternDN
 from services.humanization_engine import HumanizationEngine
 from services.integrated_midi_generator import IntegratedMidiGenerator
 
-# OAuth2 scheme pentru autentificare
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# OAuth2 scheme & Auth helper imported from routers.auth now
+# to allow reuse in other routers without circular deps
 
 # Pydantic model pentru recommendation context
 class RecommendationContext(BaseModel):
@@ -168,16 +176,7 @@ class MidiRequest(BaseModel):
     bpm: Optional[int] = 120 # Added for filename and generation context
 
 
-# Funcție helper pentru a afla userul curent din token
-def get_current_user_email(token: str = Depends(oauth2_scheme)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid auth")
-        return email
-    except:
-        raise HTTPException(status_code=401, detail="Invalid auth")
+# Auth helper moved to routers/auth.py
 
 from utils.rate_limiter import generation_limiter
 

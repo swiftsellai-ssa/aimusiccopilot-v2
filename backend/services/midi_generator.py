@@ -263,7 +263,7 @@ class MidiGenerator:
         from .music_theory import MusicTheoryService
         theory = MusicTheoryService()
         
-        root_midi = theory.get_midi_root(key, octave=2)  # Bass octave
+        root_midi = theory._note_to_midi(key, octave=2)  # Bass octave
         scale_notes = theory.SCALES.get(scale, theory.SCALES['minor'])
         
         ticks_per_step = 120
@@ -296,7 +296,7 @@ class MidiGenerator:
         from .music_theory import MusicTheoryService
         theory = MusicTheoryService()
         
-        root_midi = theory.get_midi_root(key, octave=4)  # Melody octave
+        root_midi = theory._note_to_midi(key, octave=4)  # Melody octave
         scale_notes = theory.SCALES.get(scale, theory.SCALES['minor'])
         
         ticks_per_step = 120

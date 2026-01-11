@@ -45,3 +45,19 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = security.create_access_token(data={"sub": user.email})
     
     return {"access_token": access_token, "token_type": "bearer"}
+
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt
+from utils.security import ALGORITHM, SECRET_KEY
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def get_current_user_email(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid auth")
+        return email
+    except:
+        raise HTTPException(status_code=401, detail="Invalid auth")

@@ -118,8 +118,15 @@ class PatternIntelligence:
         if bars >= 4:
             return self.phrase_structure.apply_structure(base_pattern, 'AABA', self)
             
-        # Fallback for short patterns
-        return base_pattern
+        # Fallback for short patterns: Simple Loop
+        full_events = []
+        for i in range(bars):
+             offset = i * 4 # Assuming 4/4
+             for evt in base_pattern:
+                  new_evt = evt.copy()
+                  new_evt['time'] += offset
+                  full_events.append(new_evt)
+        return full_events
 
     def _generate_response_to(self, call_pattern):
         # Placeholder for Call & Response logic

@@ -67,35 +67,49 @@ class AdvancedPatternGenerator:
         self.style_patterns = StylePatterns()
         self.groove_engine = GrooveEngine()
     
+    def _get_phrase_start_offset(self, style: str) -> float:
+        """
+        Dan Update: Calculate phrase start offset to avoid 'Downbeat Bias'.
+        Returns offset in beats (quarter notes).
+        """
+        roll = random.random()
+        if style in ['jazz', 'neo_soul', 'lofi']:
+            if roll < 0.30: return 0.0      # Downbeat (Beat 1)
+            elif roll < 0.60: return 3.5    # Pickup (And of 4 of previous bar - functionally -0.5 or push to end) -> interpreted as shift
+            else: return 1.0                # Backbeat (Beat 2)
+        elif style == 'latin':
+            return 0.0 if roll < 0.5 else 0.5 # Tumbao offset (And of 1)
+        return 0.0 # Default for Techno/Pop
+
     def generate_pattern_with_dna(self,
                                   style: str,
                                   instrument: str,
                                   dna: PatternDNA,
-                                  bars: int = 4) -> List[Dict]:
+                                  bars: int = 4,
+                                  phrase_offset: float = None) -> List[Dict]:
         """
         Generate pattern using detailed style definitions and DNA parameters.
         Handles 'full_kit' by compositing patterns.
         """
         events = []
         
+        # Determine global offset if not provided (for coherence)
+        if phrase_offset is None:
+            phrase_offset = self._get_phrase_start_offset(style)
+
         # --- Handle Aggregate Instruments ---
         if instrument in ['full_kit', 'full_drums', 'drums']:
-            # Generate kit components recursively
+            # Generate kit components recursively with SAME offset
             for component in ['kick', 'snare', 'hat']:
-                component_events = self.generate_pattern_with_dna(style, component, dna, bars)
+                component_events = self.generate_pattern_with_dna(style, component, dna, bars, phrase_offset)
                 events.extend(component_events)
             
             # Sort composite events
             events.sort(key=lambda x: x['time'])
             
-            # Apply groove to the FULL kit for coherence
-            # We skip groove on individual components to avoid double processing or phase issues
-            # But here we recursively return raw events if we are 'inside' a recursion.
-            # To handle this cleanly: apply groove ONLY at the top level or handle checks.
-            # Simpler: Always apply groove on leaf nodes? No, cross-channel groove is better.
-            # Let's apply groove HERE for the full kit context.
-            processed = self.groove_engine.apply_groove(events, style, dna.complexity)
-            return processed
+            # [Fix] Do NOT apply groove here. IntegratedMidiGenerator applies it globally.
+            # This prevents "Double Swing" and ensures coherence.
+            return events
 
         # --- Base Logic for Single Instruments ---
         
@@ -104,7 +118,6 @@ class AdvancedPatternGenerator:
         
         # SAFETY FIX: If pattern is missing (or all zeros/empty), default to quarter notes
         if not base_pattern or not any(base_pattern):
-             # print(f"⚠️ Warning: No pattern found for {style}/{instrument}. Using fallback.") # valid print
              # Default to Standard 4/4 (Quarter notes)
              base_pattern = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
         
@@ -142,6 +155,12 @@ class AdvancedPatternGenerator:
                     dna.evolution
                 )
                 
+                # [Dan Update] Syncopation Logic: Force rests on strong beats for Jazz
+                if style in ['jazz', 'neo_soul'] and instrument not in ['kick']: # Keep kick anchoring? Or loosen it too. Let's loosen all.
+                     if step_in_pattern in [0, 8]: # Beats 1 and 3
+                         # Drastically reduce probability to force "dancing" around the beat
+                         hit_probability *= 0.3 
+                
                 # Adjust probability for melodic coherence (fewer random notes)
                 if instrument not in ['kick', 'snare', 'hat', 'perc']:
                     if dna.density < 0.5:
@@ -166,8 +185,11 @@ class AdvancedPatternGenerator:
                     elif instrument in ['pad', 'chords']:
                         note_duration = 1.0 # Sustain
                     
+                    # [Dan Update] Apply Phrase Start Offset
+                    raw_time = position * 0.25 + phrase_offset
+                    
                     event = {
-                        'time': position * 0.25,  # Straight grid (groove applied later)
+                        'time': raw_time, 
                         'velocity': velocity,
                         'duration': note_duration,
                         'probability': hit_probability,
@@ -185,14 +207,8 @@ class AdvancedPatternGenerator:
                     # 7. Add Ghost Notes (Complexity) - Drums Only
                     if instrument in ['snare', 'hat'] and dna.complexity > 0.6:
                         if random.random() < (dna.complexity - 0.5):
-                            # Ghost note logic needs manual offset or just straight timing
-                            # Let's put it on 16th grid and let GrooveEngine handling it
-                            # But ghost notes are usually "in between". 
-                            # Simplification: Add it at +0.125 (1/32) or just keep existing logic but removing GrooveEngine calls?
-                            # The old logic used GrooveEngine to offset ghost note.
-                            # I will place it straight and let the engine swing it.
                             events.append({
-                                'time': position * 0.25 + 0.125,  # Straight 
+                                'time': raw_time + 0.125,  # Straight + 1/32
                                 'velocity': int(velocity * 0.4),  # Quiet
                                 'duration': 0.0625,
                                 'probability': 0.5,
@@ -200,35 +216,26 @@ class AdvancedPatternGenerator:
                             })
                             
         # Apply Groove locally for single instrument if not part of a kit
-        # (If called recursively by full_kit, full_kit logic applies it)
-        # But wait, 'full_kit' calls this function for 'kick' etc.
-        # If I apply groove here, and then 'full_kit' applies groove again, it's double swing.
-        # However, `full_kit` logic above returns early with `processed`.
-        # So I *should* apply groove here for single instruments.
-        # BUT if `full_kit` calls this, it gets the events back.
-        # If I apply groove here, the events returned to `full_kit` are already grooved.
-        # Then `full_kit` applies groove AGAIN?
-        # My logic in `full_kit` block above: `processed = self.groove_engine.apply_groove(events...)`
-        # So yes, double groove risk.
-        # Robust fix: Do NOT apply groove in `full_kit` block. Just composite events.
-        # Let the recursive calls handle it? 
-        # Actually, Groove is best applied to the WHOLE pattern to ensure phase coherence if using random jitter.
-        # But if `apply_groove` is deterministic based on style/time, it is fine.
-        # User `apply_groove` uses `random.randint` for jitter.
-        # If I apply jitter to kick, then to snare, it's fine (independent jitter).
-        # The swing is deterministic (`is_off_beat`).
-        # So I will apply usage here for single instruments.
-        # And in `full_kit` block, I will NOT apply groove again, just return the aggregated events?
-        # WAIT. `full_kit` block calls `self.generate_pattern_with_dna`.
-        # If this method returns grooved events, then `full_kit` just aggregates them.
-        # That is correct.
-        # So I remove `processed = self.groove_engine.apply_groove` from the `full_kit` block I wrote in Step 1059 replacement content?
-        # Wait, I am WRITING the replacement content now.
-        # Ideally, I should apply groove individually per instrument in the loop.
-        
-        # NOTE: I need to check if I am breaking `full_kit` logic. 
-        # If `full_kit` composites events, and those events are already grooved here, then I'm done.
-        # So `full_kit` block should just `return events` (sorted).
+        # NOTE: If we are here, we are likely a single instrument OR a leaf in the recursion.
+        # But wait, if we are a leaf called by full_kit, full_kit WILL apply groove again on the combined list.
+        # We should NOT apply groove here if we are part of a full_kit generation to avoid "Double Swing".
+        # But this function doesn't know if it was called recursively.
+        # However, `full_kit` logic expects *ungrooved* events to composite.
+        # So we should RETURN raw events here.
+        # But what if I call this function for just 'snare'? I want groove.
+        # Solution: The caller (`IntegratedMidiGenerator`) uses this for 'full_kit' mostly?
+        # Or does it call for single instruments?
+        # IntegratedMidiGenerator calls `generate_pattern_with_dna` for `instrument`.
+        # If instrument is 'full_kit', the recursion handles it.
+        # If instrument is 'snare', we reach here.
+        # To support single instrument groove, we SHOULD apply groove here.
+        # To avoid double groove for full_kit:
+        # We can pass `apply_groove=False` in recursive calls?
+        # Let's add that to signature? No, simpler:
+        # `full_kit` logic applies groove. We can make `full_kit` logic NOT apply groove, and rely on this?
+        # But then cross-channel groove (e.g. kick influencing hi-hat perception) isn't possible (though my engine is channel-independent currently).
+        # Actually, simpler: Use `phrase_offset` as a flag? No.
+        # Let's add `apply_output_groove` arg.
         
         return events
     
