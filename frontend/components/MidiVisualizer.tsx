@@ -121,7 +121,8 @@ export default function MidiVisualizer({
       minMidi: viewMin, // standardized names for the rest of the component
       maxMidi: viewMax,
       pitchRange,
-      pixelsPerSecond, totalWidth, totalHeight, rowHeight
+      pixelsPerSecond, totalWidth, totalHeight, rowHeight,
+      bpm // <--- Export BPM
     };
   }, [midiData]); // Height prop handled in CSS container
 
@@ -215,7 +216,7 @@ export default function MidiVisualizer({
 
                   {/* 2. Beats */}
                   {(() => {
-                    const bpm = midiData.header.tempos[0]?.bpm || 120;
+                    const bpm = layout.bpm; // <--- Use layout.bpm instead of midiData
                     const beatTime = 60 / bpm;
                     // Use layout.duration to cover full width
                     const totalBeats = Math.floor(layout.duration / beatTime);
