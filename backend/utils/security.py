@@ -1,13 +1,39 @@
+import logging
+import os
+import secrets
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt
+from dotenv import load_dotenv
+
+load_dotenv()
+logger = logging.getLogger(__name__)
 
 # Configurare Hashing (Bcrypt)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Configurare JWT
-# În producție, asta trebuie să fie o cheie lungă și secretă ascunsă în variabile de mediu!
-SECRET_KEY = "super-secret-key-change-this-in-production"
+# The signing key comes from the SECRET_KEY environment variable (or a local .env file).
+# Production (APP_ENV=production, or running on Render) refuses to start without it.
+# Local dev without SECRET_KEY gets a random per-process key: tokens stop working on restart.
+_IS_PRODUCTION = (
+    os.getenv("APP_ENV", "").lower() in ("production", "prod")
+    or os.getenv("RENDER", "").lower() == "true"
+)
+
+SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if _IS_PRODUCTION:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is not set. Refusing to start in production "
+            "without a JWT signing key. Generate one with: "
+            "python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    SECRET_KEY = secrets.token_urlsafe(64)
+    logger.warning(
+        "SECRET_KEY is not set; using a random development key. "
+        "Login tokens will be invalid after a restart. Set SECRET_KEY in backend/.env."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

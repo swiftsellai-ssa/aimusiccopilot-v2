@@ -24,3 +24,8 @@ backend/output/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local databases (never commit user data)
+*.db
+*.sqlite
+*.sqlite3
